@@ -17,7 +17,7 @@ class LLMConfig(BaseSettings):
 
     # Model name/identifier
     name: str = Field(
-        default="claude-3-5-sonnet-20240620",
+        default="claude-3-7-sonnet-20250219",
         description="The AI model to use",
     )
 

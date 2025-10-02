@@ -52,12 +52,17 @@ class APIConfig(BaseSettings):
     )
 
     # API key
-    api_key: str = Field(
+    llm_api_key: str = Field(
         default="",
         description="API key for the LLM model",
         validation_alias=AliasChoices(
             "anthropic_api_key", "openai_api_key", "gemini_api_key", "gpt_api_key"
         ),
+    )
+
+    e2b_api_key: str | None = Field(
+        default=None,
+        description="API key for the E2B API",
     )
 
 
@@ -68,7 +73,7 @@ class Config:
         self.model = LLMConfig()
         self.api = APIConfig()
         self.client = instructor.from_anthropic(
-            anthropic.Anthropic(api_key=self.api.api_key)
+            anthropic.Anthropic(api_key=self.api.llm_api_key)
         )
 
 

@@ -217,3 +217,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# ARC Prize Competition Data
+# These files contain competition data that should not be shared publicly
+arc-prize-2025/
+arc-agi_*.json
+sample_submission.json

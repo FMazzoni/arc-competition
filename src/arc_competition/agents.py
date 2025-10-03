@@ -3,25 +3,27 @@ Analysis Agents for the ARC Competition
 Including data analysis and grid pattern analysis agents
 """
 
+import json
+import uuid
+from datetime import datetime
+
 from atomic_agents import AgentConfig, AtomicAgent
 from atomic_agents.base.base_io_schema import BaseIOSchema
 from atomic_agents.context import SystemPromptGenerator
 from atomic_agents.context.chat_history import ChatHistory
 from e2b_code_interpreter import Sandbox
+from loguru import logger
 from pydantic import Field
 
 from .config import config
-from .logging_config import get_logger
 
 # Import Grid type from task_viewer
 from .task_viewer import ARCChallenge, Grid, GridExample
 from .utils import calculate_difference_grid, calculate_score
 
-logger = get_logger()
-
 
 class ARCChallengeInput(BaseIOSchema, ARCChallenge):
-    """Grid nput to the ARC Challenge"""
+    """Grid input to the ARC Challenge"""
 
     ...
 
@@ -181,9 +183,26 @@ def create_challenge_solver_agent() -> AtomicAgent[
     def wrapper_run(
         user_input: ARCChallengeInput | None = None,
     ) -> ChallengeSolverAgentOutput:
-        """Wrapper function"""
+        """Wrapper function with comprehensive logging"""
         if user_input is None:
             raise ValueError("Input data is required")
+
+        # Generate unique run ID and setup logging
+        run_id = str(uuid.uuid4())[:8]
+
+        # Simple file logging setup
+        log_file = (
+            f"logs/agent_{datetime.now().strftime('%Y%m%d_%H%M%S')}_run_{run_id}.log"
+        )
+        logger.add(log_file, level="DEBUG", rotation="10 MB", retention="30 days")
+
+        # Log run start with all metadata
+        run_start_data = {
+            "event": "RUN_START",
+            "run_id": run_id,
+            "challenge_data": user_input.model_dump(),
+        }
+        logger.info(f"RUN_START|{json.dumps(run_start_data, default=str)}")
 
         examples = [
             update_to_extended_input(example.input, example.input, example.output)
@@ -197,8 +216,43 @@ def create_challenge_solver_agent() -> AtomicAgent[
         num_loops = 0
         total_score = function_agent_input.calculate_total_score()
         functions_ran = []
+
+        # Log initial state
+        initial_state_data = {
+            "event": "INITIAL_STATE",
+            "run_id": run_id,
+            "num_examples": num_examples,
+            "total_score": total_score,
+            "function_agent_input": function_agent_input.model_dump(),
+        }
+        logger.info(f"INITIAL_STATE|{json.dumps(initial_state_data, default=str)}")
+
         while total_score < 100 * num_examples and num_loops < 5:
+            iteration = num_loops + 1
+
+            # Log iteration input
+            iteration_input_data = {
+                "event": "ITERATION_INPUT",
+                "run_id": run_id,
+                "iteration": iteration,
+                "input": function_agent_input.model_dump(),
+            }
+            logger.info(
+                f"ITERATION_INPUT|{json.dumps(iteration_input_data, default=str)}"
+            )
+
             output = function_agent.run(function_agent_input)
+
+            # Log iteration output
+            iteration_output_data = {
+                "event": "ITERATION_OUTPUT",
+                "run_id": run_id,
+                "iteration": iteration,
+                "output": output.model_dump(),
+            }
+            logger.info(
+                f"ITERATION_OUTPUT|{json.dumps(iteration_output_data, default=str)}"
+            )
 
             function_agent_input.example_grids = update_example_grids(
                 function_agent_input.example_grids, output.function_to_execute
@@ -207,9 +261,29 @@ def create_challenge_solver_agent() -> AtomicAgent[
 
             total_score = function_agent_input.calculate_total_score()
             num_loops += 1
-            print(f"Functions ran: {output.function_to_execute}")
-            print(f"Number of loops: {num_loops}")
-            print(f"Total score: {total_score}")
+
+            # Log iteration completion
+            iteration_complete_data = {
+                "event": "ITERATION_COMPLETE",
+                "run_id": run_id,
+                "iteration": iteration,
+                "total_score": total_score,
+                "function_executed": output.function_to_execute,
+            }
+            logger.info(
+                f"ITERATION_COMPLETE|{json.dumps(iteration_complete_data, default=str)}"
+            )
+
+        # Log run end
+        run_end_data = {
+            "event": "RUN_END",
+            "run_id": run_id,
+            "total_loops": num_loops,
+            "final_score": total_score,
+            "functions_executed": functions_ran,
+            "success": total_score >= 100 * num_examples,
+        }
+        logger.info(f"RUN_END|{json.dumps(run_end_data, default=str)}")
 
         return ChallengeSolverAgentOutput(
             functions_ran=functions_ran,

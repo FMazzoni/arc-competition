@@ -3,14 +3,12 @@ Analysis Agents for the ARC Competition
 Including data analysis and grid pattern analysis agents
 """
 
-from atomic_agents import AgentConfig, AtomicAgent, BaseTool
+from atomic_agents import AgentConfig, AtomicAgent
 from atomic_agents.base.base_io_schema import BaseIOSchema
 from atomic_agents.context import SystemPromptGenerator
 from atomic_agents.context.chat_history import ChatHistory
 from e2b_code_interpreter import Sandbox
 from pydantic import Field
-
-from arc_competition.task_viewer import Grid
 
 from .config import config
 from .logging_config import get_logger
